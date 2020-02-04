@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Incremental reconstruction pipeline"""
 
+import ipdb
 import copy
 import datetime
 import logging
@@ -68,7 +69,7 @@ def _add_camera_to_bundle(ba, camera, camera_prior, constant):
         ba.add_dual_camera(
             camera.id, camera.focal, camera.k1, camera.k2,
             camera_prior.focal, camera_prior.k1, camera_prior.k2,
-            camera.transition, constant)     
+            camera.transition, constant)
     elif camera.projection_type in ['equirectangular', 'spherical']:
         ba.add_equirectangular_camera(camera.id)
 
@@ -194,6 +195,14 @@ def bundle(graph, reconstruction, camera_priors, gcp, config):
             g = shot.metadata.gps_position
             ba.add_position_prior(shot.id, g[0], g[1], g[2],
                                   shot.metadata.gps_dop)
+
+    if config['bundle_use_initial_pose']:
+        for shot in reconstruction.shots.values():
+            ipdb.set_trace()
+            r = shot.metadata.rotation
+            t = shot.metadata.translation
+            ba.add_rotation_prior(shot.id, r[0], r[1], r[2], r[3])
+            ba.add_translation_prior(shot.id, t[0], t[1], t[2], t[3])
 
     if config['bundle_use_gcp'] and gcp:
         _add_gcp_to_bundle(ba, gcp, reconstruction.shots)
@@ -498,9 +507,25 @@ def get_image_metadata(data, image):
     metadata = types.ShotMetadata()
     exif = data.load_exif(image)
     reference = data.load_reference()
+    if 'translation' in exif:
+        tx = exif['translation']['tx']
+        ty = exif['translation']['ty']
+        tz = exif['translation']['tz']
+        std_deviation = exif['translation']['std_deviation']
+        if data.config['bundle_use_initial_pose']:
+            metadata.translation = [tx, ty, tz, std_deviation]
+
+    if 'rotation' in exif:
+        rx = exif['rotation']['rx']
+        ry = exif['rotation']['ry']
+        rz = exif['rotation']['rz']
+        std_deviation = exif['rotation']['std_deviation']
+        if data.config['bundle_use_initial_pose']:
+            metadata.rotation = [rx, ry, rz, std_deviation]
+
     if ('gps' in exif and
-            'latitude' in exif['gps'] and
-            'longitude' in exif['gps']):
+        'latitude' in exif['gps'] and
+        'longitude' in exif['gps']):
         lat = exif['gps']['latitude']
         lon = exif['gps']['longitude']
         if data.config['use_altitude_tag']:
@@ -1095,7 +1120,7 @@ def get_actual_threshold(config, points):
         return config['bundle_outlier_fixed_threshold']
     elif filter_type == 'AUTO':
         mean, std = get_error_distribution(points)
-        return config['bundle_outlier_auto_ratio']*np.linalg.norm(mean+std)
+        return config['bundle_outlier_auto_ratio'] * np.linalg.norm(mean + std)
     else:
         return 1.0
 
