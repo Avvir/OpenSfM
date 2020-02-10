@@ -198,7 +198,6 @@ def bundle(graph, reconstruction, camera_priors, gcp, config):
 
     if config['bundle_use_initial_pose']:
         for shot in reconstruction.shots.values():
-            ipdb.set_trace()
             r = shot.metadata.rotation
             t = shot.metadata.translation
             ba.add_rotation_prior(shot.id, r[0], r[1], r[2], r[3])
@@ -506,6 +505,9 @@ def get_image_metadata(data, image):
     """Get image metadata as a ShotMetadata object."""
     metadata = types.ShotMetadata()
     exif = data.load_exif(image)
+    print("******************************************")
+    print(exif)
+    print("==========================================")
     reference = data.load_reference()
     if 'translation' in exif:
         tx = exif['translation']['tx']
