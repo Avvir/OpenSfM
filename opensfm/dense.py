@@ -378,7 +378,7 @@ def common_tracks_double_dict(graph):
     return res
 
 def lookup_neighboring_images(shot, shot_of_id_dict, neighbors_dict):
-    neighbor_ids = neighbors_dict[shot.id]
+    neighbor_ids = neighbors_dict.get(shot.id, [])
     return [shot_of_id_dict[neighbor_id] for neighbor_id in neighbor_ids]
 
 

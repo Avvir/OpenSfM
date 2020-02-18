@@ -3,18 +3,31 @@ from pathlib import Path
 from pynetest.expectations import expect
 from pynetest.pyne_test_collector import describe, it, before_each
 from pynetest.pyne_tester import pyne
+from pynetest.test_doubles.attached_spy import attach_stub
+from pynetest.test_doubles.stub import group_stubs
 
 from stubs.enable_stubs import enable_stubs
 
 enable_stubs()
 
-from opensfm import io
-from opensfm.dense import lookup_neighboring_images
+from opensfm import io, dense
+from opensfm.dense import lookup_neighboring_images, compute_depthmaps
 from opensfm.types import Shot
 
 
 def get_stubs_path():
     return Path(__file__).parent
+
+def some_data():
+    class Data:
+        def __init__(self):
+            self.config = dict()
+            self.config["processes"] = 1
+            self.config["depthmap_num_neighbors"] = 5
+            self.config["depthmap_min_depth"] = 0
+            self.config["depthmap_max_depth"] = 1
+
+    return Data()
 
 @pyne
 def dense_test():
@@ -30,7 +43,8 @@ def dense_test():
         self.shots_dict = reconstruction.shots
         self.expected_shot_ids = ["1579044395.47_img_00089.jpg_perspective_view_back", "1579044395.47_img_00081.jpg_perspective_view_bottom", "1579044395.47_img_00079.jpg_perspective_view_front"]
         self.neighbors_dict = { self.shot_id: self.expected_shot_ids, self.lonely_shot_id: [] }
-        return reconstruction
+        self.data = some_data()
+        self.reconstruction = reconstruction
 
     @describe("#lookup_neighboring_images")
     def _():
@@ -51,3 +65,18 @@ def dense_test():
                 expect(actual_shots).to_be_a(list)
                 expect(actual_shots).to_have_length(0)
 
+    @describe("#compute_depth")
+    def _():
+        @it("It uses the neighbors dict and config depths")
+        def _(self):
+            with group_stubs(
+
+                    attach_stub(dense, "lookup_neighboring_images").call_real(),
+                    attach_stub(dense, "config_depth_range").call_real(),
+                    attach_stub(dense, "compute_depthmap"),
+                    attach_stub(dense, "merge_depthmaps"),
+                    attach_stub(dense, "clean_depthmap"),
+                    attach_stub(dense, "prune_depthmap")):
+                compute_depthmaps(self.data, None, self.reconstruction, self.neighbors_dict)
+                expect(dense.lookup_neighboring_images).was_called()
+                expect(dense.config_depth_range).was_called()
