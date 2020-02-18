@@ -46,6 +46,7 @@ class Command:
         )
 
     def run(self, args):
+        print(args)
         data = dataset.DataSet(args.dataset)
         udata = dataset.UndistortedDataSet(data, args.output)
         reconstructions = data.load_reconstruction(args.reconstruction)
