@@ -19,7 +19,7 @@ from opensfm.context import parallel_map
 logger = logging.getLogger(__name__)
 
 
-def compute_depthmaps(data, graph, reconstruction):
+def compute_depthmaps(data, graph, reconstruction, neighbors_dict=None):
     """Compute and refine depthmaps for all shots.
 
     Args:
@@ -33,16 +33,21 @@ def compute_depthmaps(data, graph, reconstruction):
     num_neighbors = config['depthmap_num_neighbors']
 
     neighbors = {}
-    common_tracks = common_tracks_double_dict(graph)
+    common_tracks = common_tracks_double_dict(graph) if graph else None
     for shot in reconstruction.shots.values():
-        neighbors[shot.id] = find_neighboring_images(
-            shot, common_tracks, reconstruction, num_neighbors)
+        if neighbors_dict:
+            neighbors[shot.id] = lookup_neighboring_images(shot, reconstruction.shots, neighbors_dict)
+        else:
+            neighbors[shot.id] = find_neighboring_images(shot, common_tracks, reconstruction, num_neighbors)
 
     arguments = []
     for shot in reconstruction.shots.values():
         if len(neighbors[shot.id]) <= 1:
             continue
-        mind, maxd = compute_depth_range(graph, reconstruction, shot, config)
+        if graph:
+            mind, maxd = compute_depth_range(graph, reconstruction, shot, config)
+        else:
+            mind, maxd = config_depth_range(config)
         arguments.append((data, neighbors[shot.id], mind, maxd, shot))
     parallel_map(compute_depthmap_catched, arguments, processes)
 
@@ -352,6 +357,10 @@ def compute_depth_range(graph, reconstruction, shot, config):
 
     return config_min_depth or min_depth, config_max_depth or max_depth
 
+def config_depth_range(config):
+    """config min and max depth"""
+    return config['depthmap_min_depth'], config['depthmap_max_depth']
+
 
 def common_tracks_double_dict(graph):
     """List of track ids observed by each image pair.
@@ -367,6 +376,9 @@ def common_tracks_double_dict(graph):
         res[im1][im2] = v
         res[im2][im1] = v
     return res
+
+def lookup_neighboring_images(shot, shot_of_id_dict, neighbors_dict):
+    pass
 
 
 def find_neighboring_images(shot, common_tracks, reconstruction, num_neighbors):
