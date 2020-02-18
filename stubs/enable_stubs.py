@@ -10,5 +10,6 @@ def get_stubs_directory():
 def enable_stubs():
     import opensfm
     opensfm.csfm = StubbedModule()
+    opensfm.csfm.DepthmapPruner = StubbedModule()
     sys.modules["pyopengv"] = StubbedModule()
     sys.path.insert(0, get_stubs_directory())
