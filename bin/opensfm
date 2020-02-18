@@ -31,4 +31,5 @@ args = parser.parse_args()
 # Run the selected subcommand
 for command in subcommands:
     if args.command == command.name:
+        print(f"Running {command} with {args}")
         command.run(args)

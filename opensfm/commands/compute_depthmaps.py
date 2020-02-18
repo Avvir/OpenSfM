@@ -1,6 +1,7 @@
 import logging
+from pathlib import Path
 
-from opensfm import dataset
+from opensfm import dataset, io
 from opensfm import dense
 
 logger = logging.getLogger(__name__)
@@ -29,8 +30,15 @@ class Command:
     def run(self, args):
         data = dataset.DataSet(args.dataset)
         udata = dataset.UndistortedDataSet(data, args.subfolder)
-        data.config['interactive'] = args.interactive
-        reconstructions = udata.load_undistorted_reconstruction()
-        graph = udata.load_undistorted_tracks_graph()
+        neighbors_path: Path = data.data_path / args.subfolder / "neighbors.json"
 
-        dense.compute_depthmaps(udata, graph, reconstructions[0])
+        data.config['interactive'] = args.interactive
+        graph, neighbors_dict = None, None
+        reconstructions = udata.load_undistorted_reconstruction()
+        if neighbors_path.exists():
+            with io.open_rt(neighbors_path) as fp:
+                neighbors_dict = io.json_load(fp)
+        else:
+            graph = udata.load_undistorted_tracks_graph()
+
+        dense.compute_depthmaps(udata, graph, reconstructions[0], neighbors_dict)

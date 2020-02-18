@@ -2,7 +2,8 @@ import sys
 from pathlib import Path
 
 class StubbedModule():
-    pass
+    def __call__(self, *args, **kwargs):
+        pass
 
 def get_stubs_directory():
     return str(Path(__file__).parent)

@@ -15,8 +15,8 @@ from opensfm.dense import lookup_neighboring_images, compute_depthmaps
 from opensfm.types import Shot
 
 
-def get_stubs_path():
-    return Path(__file__).parent
+def get_undistorted_path():
+    return Path(__file__).parent / "resources" / "undistorted"
 
 def some_data():
     class Data:
@@ -33,7 +33,7 @@ def some_data():
 def dense_test():
     @before_each
     def _(self):
-        reconstruction_path = str(get_stubs_path() / "reconstruction.json")
+        reconstruction_path = str(get_undistorted_path() / "reconstruction.json")
         with io.open_rt(reconstruction_path) as fin:
             reconstruction = io.reconstructions_from_json(io.json_load(fin))[0]
         self.shot_id = "1579044395.47_img_00088.jpg_perspective_view_front"
@@ -65,7 +65,7 @@ def dense_test():
                 expect(actual_shots).to_be_a(list)
                 expect(actual_shots).to_have_length(0)
 
-    @describe("#compute_depth")
+    @describe("#compute_depthmaps")
     def _():
         @it("It uses the neighbors dict and config depths")
         def _(self):

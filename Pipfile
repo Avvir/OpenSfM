@@ -1,0 +1,32 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+cloudpickle = "==0.4.0"
+gpxpy = "==1.1.2"
+joblib = "==0.13.2"
+loky = "==1.2.1"
+networkx = "==1.11"
+numpy = "*"
+pyproj = "==1.9.5.1"
+pytest = "==3.0.7"
+python-dateutil = "==2.6.0"
+scipy = "*"
+six = "*"
+xmltodict = "==0.10.2"
+ipdb = "*"
+ExifRead = "==2.1.2"
+Pillow = "==6.2.0"
+PyYAML = "==5.1"
+"repoze.lru" = "==0.7"
+opencv-python = "*"
+
+[dev-packages]
+pynetest = {editable = true,git = "ssh://git@github.com/avvir/pyne",ref = "v0.2.5"}
+pyyaml = "*"
+ipython = "*"
+
+[requires]
+python_version = "3.6"

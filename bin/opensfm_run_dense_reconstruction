@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+PYTHON=${2:-python3}
+
+echo "Running using Python command: $PYTHON"
+
+$PYTHON $DIR/opensfm undistort $1
+$PYTHON $DIR/opensfm compute_depthmaps $1
