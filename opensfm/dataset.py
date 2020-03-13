@@ -448,6 +448,17 @@ class DataSet(object):
     def reference_lla_exists(self):
         return os.path.isfile(self._reference_lla_path())
 
+    def load_match_adjacency_list(self):
+        with io.open_rt(self._match_adjacency_list_file()) as fin:
+            obj = json.load(fin)
+            return obj
+
+    def _match_adjacency_list_file(self):
+        return os.path.join(self.data_path, 'match_adjacency_list.json')
+
+    def match_adjacency_list_exists(self):
+        return os.path.isfile(self._match_adjacency_list_file())
+
     def _camera_models_file(self):
         """Return path of camera model file"""
         return os.path.join(self.data_path, 'camera_models.json')

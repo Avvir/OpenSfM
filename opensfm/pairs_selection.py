@@ -262,6 +262,26 @@ def match_candidates_from_metadata(images_ref, images_cand, exifs, data):
     Returns a list of pairs (im1, im2) such that (im1 in images_ref) is true.
     Returned pairs are unique given that (i, j) == (j, i).
     """
+    from opensfm.dataset import DataSet
+    data: DataSet = data
+    if data.match_adjacency_list_exists():
+        report = {
+            "num_pairs_distance": 0,
+            "num_pairs_time": 0,
+            "num_pairs_order": 0,
+            "num_pairs_bow": 0,
+            "num_pairs_vlad": 0
+        }
+        adjacency_list_dict = data.load_match_adjacency_list()
+        pairs = []
+        for image_i, adjacency_list in adjacency_list_dict.items():
+            for image_j in adjacency_list:
+                if image_i == image_j:
+                    continue
+                pairs.append((image_i, image_j))
+        print("Using adjacency lists")
+        return pairs, report
+
     max_distance = data.config['matching_gps_distance']
     gps_neighbors = data.config['matching_gps_neighbors']
     time_neighbors = data.config['matching_time_neighbors']

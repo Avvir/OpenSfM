@@ -4,4 +4,9 @@
         "width": 3840,
         "height": 1920
     }
+    "v2 unknown unknown 3840 2160 perspective 0": {
+        "projection_type": "equirectangular",
+        "width": 3840,
+        "height": 2160
+    }
 }
