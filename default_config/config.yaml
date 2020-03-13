@@ -1,0 +1,7 @@
+# OpenSfM will use the default parameters from opensfm/config.py
+# Set here any parameter that you want to override for this dataset
+
+processes: 30                         # Number of threads to use
+bundle_use_initial_pose: False
+matching_order_neighbors: 10
+depthmap_method: BRUTE_FORCE
