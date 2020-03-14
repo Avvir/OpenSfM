@@ -59,7 +59,7 @@ def compute_depthmaps_test():
     def _():
         @it("loads the neighbors.json file if it exists")
         def _(self):
-            args = Namespace(command='compute_depthmaps', dataset=get_undistorted_path().parent, interactive=False, subfolder='undistorted')
+            args = Namespace(command='compute_depthmaps', dataset=str(get_undistorted_path().parent), interactive=False, subfolder='undistorted')
             command = ComputeDepthmaps()
 
             with group_stubs(

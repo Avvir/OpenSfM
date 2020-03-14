@@ -30,7 +30,7 @@ class Command:
     def run(self, args):
         data = dataset.DataSet(args.dataset)
         udata = dataset.UndistortedDataSet(data, args.subfolder)
-        neighbors_path: Path = data.data_path / args.subfolder / "neighbors.json"
+        neighbors_path: Path = Path(data.data_path) / args.subfolder / "neighbors.json"
 
         data.config['interactive'] = args.interactive
         graph, neighbors_dict = None, None
