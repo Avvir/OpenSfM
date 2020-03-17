@@ -34,11 +34,21 @@ def compute_depthmaps(data, graph, reconstruction, neighbors_dict=None):
 
     neighbors = {}
     common_tracks = common_tracks_double_dict(graph) if graph else None
+    from pathlib import Path
     for shot in reconstruction.shots.values():
         if neighbors_dict:
             neighbors[shot.id] = lookup_neighboring_images(shot, reconstruction.shots, neighbors_dict)
         else:
             neighbors[shot.id] = find_neighboring_images(shot, common_tracks, reconstruction, num_neighbors)
+
+    neighbors_path: Path = Path(data.data_path) / "neighbors.json"
+    if not neighbors_path.exists():
+        neighbors_dict = dict()
+        for shot_id, shot_neighbors in neighbors.items():
+            neighbors_dict[shot_id] = [shot.id for shot in shot_neighbors]
+        with io.open_wt(neighbors_path) as fp:
+            print("Caching neighbors")
+            io.json_dump(neighbors_dict, fp)
 
     arguments = []
     for shot in reconstruction.shots.values():
@@ -49,6 +59,7 @@ def compute_depthmaps(data, graph, reconstruction, neighbors_dict=None):
         else:
             mind, maxd = config_depth_range(config)
         arguments.append((data, neighbors[shot.id], mind, maxd, shot))
+
     parallel_map(compute_depthmap_catched, arguments, processes)
 
     arguments = []

@@ -14,9 +14,12 @@ from opensfm import io, dense
 from opensfm.dense import lookup_neighboring_images, compute_depthmaps
 from opensfm.types import Shot
 
+def get_project_path():
+    return Path(__file__).parent / "resources"
 
 def get_undistorted_path():
-    return Path(__file__).parent / "resources" / "undistorted"
+    return get_project_path() / "undistorted"
+
 
 def some_data():
     class Data:
@@ -26,7 +29,7 @@ def some_data():
             self.config["depthmap_num_neighbors"] = 5
             self.config["depthmap_min_depth"] = 0
             self.config["depthmap_max_depth"] = 1
-
+            self.data_path = get_project_path()
     return Data()
 
 @pyne

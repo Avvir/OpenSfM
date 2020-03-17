@@ -30,11 +30,11 @@ class Command:
     def run(self, args):
         data = dataset.DataSet(args.dataset)
         udata = dataset.UndistortedDataSet(data, args.subfolder)
-        neighbors_path: Path = Path(data.data_path) / args.subfolder / "neighbors.json"
 
         data.config['interactive'] = args.interactive
         graph, neighbors_dict = None, None
         reconstructions = udata.load_undistorted_reconstruction()
+        neighbors_path: Path = Path(data.data_path) / "neighbors.json"
         if neighbors_path.exists():
             with io.open_rt(neighbors_path) as fp:
                 neighbors_dict = io.json_load(fp)
