@@ -196,7 +196,7 @@ def bundle(graph, reconstruction, camera_priors, gcp, config):
             ba.add_position_prior(shot.id, g[0], g[1], g[2],
                                   shot.metadata.gps_dop)
 
-    if config['bundle_use_initial_pose']:
+    if config.get('bundle_use_initial_pose', False):
         for shot in reconstruction.shots.values():
             r = shot.metadata.rotation
             t = shot.metadata.translation
