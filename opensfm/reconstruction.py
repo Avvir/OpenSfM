@@ -196,6 +196,7 @@ def bundle(graph, reconstruction, camera_priors, gcp, config):
             ba.add_position_prior(shot.id, g[0], g[1], g[2],
                                   shot.metadata.gps_dop)
 
+    # only useful if the reconstruction is already approximatley aligned to the world of the initial pose
     if config.get('bundle_use_initial_pose', False):
         for shot in reconstruction.shots.values():
             r = shot.metadata.rotation
@@ -259,7 +260,16 @@ def bundle(graph, reconstruction, camera_priors, gcp, config):
 
 
 def bundle_single_view(graph, reconstruction, shot_id, camera_priors, config):
-    """Bundle adjust a single camera."""
+    """Bundle adjust a single camera.
+    Given:
+    - 3D feature points in world (from reconstruction)
+    - 2D feature points in image (from graph)
+    - current camera pose estimate (from reconstruction + shot_id)
+    - GPS world location (optional) (from reconstruction + shot_id)
+    - 3rd party world location (optional TODO)
+
+    When bundle adjustment is run
+    Then camera pose is improved on the reconstruction (optimized w.r.t the above data)"""
     ba = pybundle.BundleAdjuster()
     shot = reconstruction.shots[shot_id]
     camera = shot.camera
@@ -279,6 +289,7 @@ def bundle_single_view(graph, reconstruction, shot_id, camera_priors, config):
         ba.add_point_projection_observation(
             shot_id, track_id, point[0], point[1], scale)
 
+    #TODO add unary position
     if config['bundle_use_gps']:
         g = shot.metadata.gps_position
         ba.add_position_prior(shot.id, g[0], g[1], g[2],
@@ -729,6 +740,8 @@ def bootstrap_reconstruction(data, graph, camera_priors, im1, im2, p1, p2):
     threshold = data.config['five_point_algo_threshold']
     min_inliers = data.config['five_point_algo_min_inliers']
     iterations = data.config['five_point_refine_rec_iterations']
+
+    # Step 1: estimate the pose between camera1 and camera2 using image features
     R, t, inliers, report['two_view_reconstruction'] = \
         two_view_reconstruction_general(
             p1, p2, camera1, camera2, threshold, iterations)
@@ -760,6 +773,8 @@ def bootstrap_reconstruction(data, graph, camera_priors, im1, im2, p1, p2):
     reconstruction.add_shot(shot2)
 
     graph_inliers = nx.Graph()
+
+    # Step 2: Estimate features' 3D locations in camera1 coordinates
     triangulate_shot_features(graph, graph_inliers, reconstruction, im1, data.config)
 
     logger.info("Triangulated: {}".format(len(reconstruction.points)))
@@ -770,14 +785,18 @@ def bootstrap_reconstruction(data, graph, camera_priors, im1, im2, p1, p2):
         logger.info(report['decision'])
         return None, None, report
 
+    # Step 3: Re-estimate camera2's pose in camera1's coordinate system using 3d feature and any priors
     bundle_single_view(graph_inliers, reconstruction, im2, camera_priors,
                        data.config)
+    # Step 4: Update the 3D coordinates of the features now that we have adjusted camera2's position
     retriangulate(graph, graph_inliers, reconstruction, data.config)
 
     if len(reconstruction.points) < min_inliers:
         report['decision'] = "Re-triangulation after initial motion did not generate enough points"
         logger.info(report['decision'])
         return None, None, report
+
+    # Step 5:  Re-estimate camera2's pose in camera1's coordinate system using 3d feature and any priors now that 3D features have been updated
     bundle_single_view(graph_inliers, reconstruction, im2, camera_priors,
                        data.config)
 
@@ -1067,7 +1086,15 @@ class TrackTriangulator:
 
 
 def triangulate_shot_features(graph, graph_inliers, reconstruction, shot_id, config):
-    """Reconstruct as many tracks seen in shot_id as possible."""
+    """Reconstruct as many tracks seen in shot_id as possible.
+    Given:
+    All tracks
+    Shot poses
+
+    When triangulating
+    Then adds all inlier tracks to graph_inliers
+    And adds all 3D track points to reconstruction
+    """
     reproj_threshold = config['triangulation_threshold']
     min_ray_angle = config['triangulation_min_ray_angle']
 
@@ -1284,8 +1311,14 @@ def grow_reconstruction(data, graph, graph_inliers, reconstruction, images, came
     config = data.config
     report = {'steps': []}
 
+    # Step 1: aligning the reconstruction to the world if world is provided
     align_reconstruction(reconstruction, gcp, config)
+
+    # Step 2: bundles adjustment on the feature and camera locations using all cameras in the reconsturction, all features, and extra data (gps gcp or TODO 3rd party poses)
+    # expects reconstruction and extra data to be in the same coordinate system
     bundle(graph, reconstruction, camera_priors, None, config)
+
+    # Step 3: remove bad feature camera pairs from the graph
     remove_outliers(graph_inliers, reconstruction, config)
 
     should_bundle = ShouldBundle(data, reconstruction)
@@ -1305,15 +1338,20 @@ def grow_reconstruction(data, graph, graph_inliers, reconstruction, images, came
         logger.info("-------------------------------------------------------")
         threshold = data.config['resection_threshold']
         min_inliers = data.config['resection_min_inliers']
+
+        # Step 4: for all possible images that see the same features that are currently in our reconstruction pose graph
         for image, num_tracks in candidates:
 
             camera = reconstruction.cameras[data.load_exif(image)['camera']]
             metadata = get_image_metadata(data, image)
+
+            # Step 4a: estimate the pose of this camera and add to the reconstruction
             ok, resrep = resect(graph, graph_inliers, reconstruction, image,
                                 camera, metadata, threshold, min_inliers)
             if not ok:
                 continue
 
+            # Step 4b: reoptimize the single camera location with respect to the feature locations in the image
             bundle_single_view(graph_inliers, reconstruction, image,
                                camera_priors, data.config)
 
@@ -1327,10 +1365,17 @@ def grow_reconstruction(data, graph, graph_inliers, reconstruction, images, came
             images.remove(image)
 
             np_before = len(reconstruction.points)
+
+            # Step 4c: triangulate 3d features not already in the reconstruction for newly added image
             triangulate_shot_features(graph, graph_inliers, reconstruction, image, config)
             np_after = len(reconstruction.points)
             step['triangulated_points'] = np_after - np_before
 
+            # Step 4d: Recalculate alignment to world, bundle, retriangulate and rebundle
+            # we recalculate alignment to the world because we added a new camera to the reconstruction
+            # rebundle because we added a new camera to our reconstruction and that changed the alignment to the world
+            # retriangled because we rebundled
+            # we rebundle because our point locations have been updated
             if should_retriangulate.should():
                 logger.info("Re-triangulating")
                 align_reconstruction(reconstruction, gcp, config)
@@ -1366,6 +1411,7 @@ def grow_reconstruction(data, graph, graph_inliers, reconstruction, images, came
 
     logger.info("-------------------------------------------------------")
 
+    # Step 5 final alignment, bundle, remove outliers and addition of color
     align_reconstruction(reconstruction, gcp, config)
     bundle(graph_inliers, reconstruction, camera_priors, gcp, config)
     remove_outliers(graph_inliers, reconstruction, config)
@@ -1426,12 +1472,15 @@ def incremental_reconstruction(data, graph):
             rec_report = {}
             report['reconstructions'].append(rec_report)
             tracks, p1, p2 = common_tracks[im1, im2]
+
+            # Estimates camera2 pose and the feature 3D locations in camera1's coordinate system
             reconstruction, graph_inliers, rec_report['bootstrap'] = bootstrap_reconstruction(
                 data, graph, camera_priors, im1, im2, p1, p2)
 
             if reconstruction:
                 remaining_images.remove(im1)
                 remaining_images.remove(im2)
+
                 reconstruction, rec_report['grow'] = grow_reconstruction(
                     data, graph, graph_inliers, reconstruction, remaining_images, camera_priors, gcp)
                 reconstructions.append(reconstruction)

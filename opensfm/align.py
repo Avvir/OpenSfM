@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def align_reconstruction(reconstruction, gcp, config):
+    # TODO add unary 3rd party constraint
     """Align a reconstruction with GPS and GCP data."""
     res = align_reconstruction_similarity(reconstruction, gcp, config)
     if res:
